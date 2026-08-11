@@ -1,0 +1,1 @@
+输入包提供五副本StatefulSet、四阶段合同、序号探针样本和卷保留要求。请修正headlessService与StatefulSet，使用kubectl内置Kustomize构建base、canary、promote和rollback四份清单。再把ordinal_probes.csv整理为样本复核表和阶段检查门，并按合同形成尚未执行的回退检查表。whenDeleted与whenScaled只按清单字段核对。不得写成Pod已经更新、阻断、删除、重建或回退，也不得声称PVC状态已经由集群确认。

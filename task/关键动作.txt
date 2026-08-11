@@ -1,0 +1,6 @@
+核对四阶段镜像、partition和探针样本范围
+修正headlessService与OrderedReadyStatefulSet
+为base、canary、promote和rollback建立Kustomize配置
+从四份渲染清单提取阶段字段检查表
+按输入布尔值整理探针样本和阶段检查门
+把回退动作标为未执行并限定PVC结论范围

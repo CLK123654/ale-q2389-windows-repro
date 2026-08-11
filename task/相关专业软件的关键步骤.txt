@@ -1,0 +1,5 @@
+1.运行kubectl.exe kustomize构建base目录
+2.分别构建canary、promote和rollback覆盖层
+3.核对四份清单中的镜像、partition和卷保留字段
+4.按ordinal_probes.csv整理样本状态和阶段检查门
+5.确认回退检查表全部标为未执行且没有PVC实测结论

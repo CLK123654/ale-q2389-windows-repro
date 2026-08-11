@@ -1,0 +1,11 @@
+{
+  "题目ID": "2389",
+  "任务名称": "时序存储StatefulSet分区升级清单与回退步骤",
+  "任务概要": "时序存储集群准备从旧镜像分批升级。发布负责人需要核对四阶段StatefulSet清单、探针样本和回退检查项，交付物不冒充控制器运行记录。",
+  "任务prompt‼️": "输入包提供五副本StatefulSet、四阶段合同、序号探针样本和卷保留要求。请修正headlessService与StatefulSet，使用kubectl内置Kustomize构建base、canary、promote和rollback四份清单。再把ordinal_probes.csv整理为样本复核表和阶段检查门，并按合同形成尚未执行的回退检查表。whenDeleted与whenScaled只按清单字段核对。不得写成Pod已经更新、阻断、删除、重建或回退，也不得声称PVC状态已经由集群确认。",
+  "关键动作": "核对四阶段镜像、partition和探针样本范围\n修正headlessService与OrderedReadyStatefulSet\n为base、canary、promote和rollback建立Kustomize配置\n从四份渲染清单提取阶段字段检查表\n按输入布尔值整理探针样本和阶段检查门\n把回退动作标为未执行并限定PVC结论范围",
+  "评分表（直接输入内容或使用txt文档）‼️": "总分100分。\n\n1.Service与StatefulSet基础字段正确（20分）\n2.四阶段镜像、partition和Kustomize构建结果正确（25分）\n3.探针样本复核与阶段检查门符合输入合同（20分）\n4.回退检查表的前置条件、证据和未执行状态正确（20分）\n5.报告没有控制器运行或PVC实测结论（15分）",
+  "本项任务的环境依赖": "主软件为kubectl1.32.6及其内置Kustomize，使用Windows11原生PowerShell运行kubectl.exe。复现过程只查询客户端版本并构建四份本地清单，不读取用户kubeconfig，也不连接集群。\n\n辅助工具为Ruby3.3及其CSV、JSON、YAML和临时目录标准库。kubectl与Kubernetes按ApacheLicense2.0使用，Ruby沿用原项目许可。\n\n安装锁定工具时可以联网；正式复现只读取输入包和本地工作目录，不访问API服务器、镜像仓库或外部服务。读写权限限定为输入目录只读、结果目录可写。\n\n主要风险是partition方向写反、覆盖层镜像不一致、探针样本被误写成控制器事件、回退检查项被标成已经执行，或把Retain字段写成PVC当前仍为BOUND。",
+  "相关专业软件的关键步骤": "1.运行kubectl.exe kustomize构建base目录\n2.分别构建canary、promote和rollback覆盖层\n3.核对四份清单中的镜像、partition和卷保留字段\n4.按ordinal_probes.csv整理样本状态和阶段检查门\n5.确认回退检查表全部标为未执行且没有PVC实测结论",
+  "涉及的专业软件": "Kubernetes"
+}
