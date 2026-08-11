@@ -59,7 +59,7 @@ try {
   $probeText = Get-Content -LiteralPath $probePath -Raw
   $changedText = $probeText.Replace("promote,1,false,false,9999", "promote,1,true,true,220")
   if ($changedText -eq $probeText) { throw "mutation target missing" }
-  Set-Content -LiteralPath $probePath -Value $changedText -Encoding utf8
+  [IO.File]::WriteAllText($probePath, $changedText.Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
   Invoke-AleReview (Join-Path $mutationRoot "input") (Join-Path $mutationRoot "reference") (Join-Path $mutationRoot "generated")
   $baselineJson = (Get-AleTree (Join-Path $aleWork "clean-a/generated")) | ConvertTo-Json -Compress
   $mutationJson = (Get-AleTree (Join-Path $mutationRoot "generated")) | ConvertTo-Json -Compress
