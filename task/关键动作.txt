@@ -1,6 +1,6 @@
-核对四阶段镜像、partition和探针样本范围
-修正headlessService与OrderedReadyStatefulSet
-为base、canary、promote和rollback建立Kustomize配置
-从四份渲染清单提取阶段字段检查表
-按输入布尔值整理探针样本和阶段检查门
-把回退动作标为未执行并限定PVC结论范围
+核对阶段合同、起始清单和探针样本之间的对应关系。
+整理headless Service与StatefulSet基础配置，使服务选择器、Pod标签和数据卷模板闭合。
+建立canary、promote和rollback覆盖层，并用kubectl生成四阶段候选清单。
+从渲染结果提取镜像、partition、探针参数和卷保留字段，形成阶段字段表。
+按合同指定的序号顺序归并探针样本，区分可以继续和需要暂缓的阶段。
+整理回退前置条件、待收集材料和现场动作，交给发布值班继续处理。

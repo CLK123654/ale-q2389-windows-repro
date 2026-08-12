@@ -1,1 +1,7 @@
-输入包提供五副本StatefulSet、四阶段合同、序号探针样本和卷保留要求。请修正headlessService与StatefulSet，使用kubectl内置Kustomize构建base、canary、promote和rollback四份清单。再把ordinal_probes.csv整理为样本复核表和阶段检查门，并按合同形成尚未执行的回退检查表。whenDeleted与whenScaled只按清单字段核对。不得写成Pod已经更新、阻断、删除、重建或回退，也不得声称PVC状态已经由集群确认。
+时序存储平台计划在下个维护窗升级五副本服务。旧方案没有固定partition方向，回退说明又把数据卷保留字段当成了现场状态。发布负责人希望先把候选清单和样本判断理顺，再决定是否进入集群变更。
+
+材料中有现行StatefulSet、阶段合同和各序号探针样本。合同给出base、canary、promote与rollback的镜像和分区边界，也列出回退前要收集的材料。探针表是值班同事整理的历史样本，不是控制器事件。
+
+请用kubectl内置Kustomize整理Service和StatefulSet基础清单，再建立三个阶段覆盖层。检查选择器、镜像、partition、探针和卷保留策略，把关键字段汇成阶段表。随后按合同顺序归并样本，给出各阶段可以继续还是需要暂缓。
+
+最后准备回退检查表和操作说明，明确哪些材料已经具备、哪些动作仍要等审批和集群现场确认。把Kustomize目录、四份渲染清单、阶段与探针结果、回退检查表连同简要说明交给发布值班，供维护窗前讨论。

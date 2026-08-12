@@ -1,5 +1,6 @@
-1.运行kubectl.exe kustomize构建base目录
-2.分别构建canary、promote和rollback覆盖层
-3.核对四份清单中的镜像、partition和卷保留字段
-4.按ordinal_probes.csv整理样本状态和阶段检查门
-5.确认回退检查表全部标为未执行且没有PVC实测结论
+1.读取阶段合同和起始清单，整理base目录中的Service与StatefulSet
+2.为canary、promote和rollback建立Kustomize覆盖层
+3.使用kubectl.exe kustomize生成四阶段候选清单
+4.从清单中汇总镜像、partition、探针参数和卷保留字段
+5.结合序号探针样本形成阶段结论与回退检查表
+6.核对各结果之间的阶段名称、序号和状态是否一致
