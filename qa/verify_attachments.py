@@ -49,7 +49,7 @@ for archive in ("输入数据包.zip", "reference.zip"):
 
 payload = {
     "result": "PASS",
-    "qid": json.loads((TASK / "task_fields.json").read_text(encoding="utf-8"))["题目ID"],
+    "task_slug": "statefulset_partition_rollout_review",
     "commit_sha": os.getenv("GITHUB_SHA", "local"),
     "workflow_run_id": os.getenv("GITHUB_RUN_ID", "local"),
     "attachment_sha256": actual,
