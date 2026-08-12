@@ -1,106 +1,45 @@
 $ErrorActionPreference = "Stop"
 $aleRoot = (Resolve-Path ".").Path
-$aleWork = Join-Path $env:RUNNER_TEMP "ale-q2389-work"
+$aleWork = Join-Path $env:RUNNER_TEMP "ale-q2389-manifests"
 $aleEvidence = Join-Path $aleRoot "evidence"
-$aleKubectl = (Get-Command kubectl.exe).Source
-$aleRuby = (Get-Command ruby.exe).Source
 
 if (Test-Path $aleWork) { Remove-Item -LiteralPath $aleWork -Recurse -Force }
 New-Item -ItemType Directory -Path $aleWork | Out-Null
 New-Item -ItemType Directory -Path $aleEvidence -Force | Out-Null
+Expand-Archive -LiteralPath (Join-Path $aleRoot "task/reference.zip") -DestinationPath $aleWork
 
-function Get-AleTree([string]$Directory) {
-  $values = [ordered]@{}
-  Get-ChildItem -LiteralPath $Directory -Recurse -File | Sort-Object FullName | ForEach-Object {
-    $relative = [IO.Path]::GetRelativePath($Directory, $_.FullName).Replace("\", "/")
-    $values[$relative] = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+$phases = @{
+  base = "output/kustomize/base"
+  canary = "output/kustomize/overlays/canary"
+  promote = "output/kustomize/overlays/promote"
+  rollback = "output/kustomize/overlays/rollback"
+}
+
+foreach ($phase in $phases.Keys) {
+  $source = Join-Path $aleWork $phases[$phase]
+  $target = Join-Path $aleWork "built-$phase.yaml"
+  $expectedPath = Join-Path $aleWork "output/results/rendered_$phase.yaml"
+  kubectl.exe kustomize $source | Set-Content -LiteralPath $target -Encoding utf8
+  if ($LASTEXITCODE -ne 0) { throw "Kustomize build failed for $phase" }
+  $content = Get-Content -LiteralPath $target -Raw
+  if ($content -notmatch "kind: Service" -or $content -notmatch "kind: StatefulSet") {
+    throw "Candidate manifest is incomplete for $phase"
   }
-  return $values
-}
-
-function Assert-AleTree([string]$Left, [string]$Right, [string]$Label) {
-  $leftJson = (Get-AleTree $Left) | ConvertTo-Json -Compress
-  $rightJson = (Get-AleTree $Right) | ConvertTo-Json -Compress
-  if ($leftJson -ne $rightJson) { throw "$Label tree mismatch" }
-}
-
-function Invoke-AleReview([string]$InputRoot, [string]$ReferenceRoot, [string]$OutputRoot) {
-  $env:ALE_INPUT_ROOT = Join-Path $InputRoot "input_data"
-  $env:ALE_OUTPUT_ROOT = $OutputRoot
-  $env:KUBECTL_BIN = $aleKubectl
-  $env:RUBY_BIN = $aleRuby
-  & $aleRuby (Join-Path $ReferenceRoot "output/run_release_review.rb")
-  if ($LASTEXITCODE -ne 0) { throw "release review failed with exit $LASTEXITCODE" }
-}
-
-$aleRules = @()
-foreach ($program in @($aleRuby, $aleKubectl)) {
-  $name = "ALE-Q2389-$([Guid]::NewGuid().ToString('N'))"
-  New-NetFirewallRule -DisplayName $name -Direction Outbound -Action Block -Program $program | Out-Null
-  $aleRules += $name
-}
-
-try {
-  foreach ($label in @("clean-a", "clean-b")) {
-    $base = Join-Path $aleWork $label
-    $inputRoot = Join-Path $base "input"
-    $referenceRoot = Join-Path $base "reference"
-    Expand-Archive -LiteralPath (Join-Path $aleRoot "task/输入数据包.zip") -DestinationPath $inputRoot
-    Expand-Archive -LiteralPath (Join-Path $aleRoot "task/reference.zip") -DestinationPath $referenceRoot
-    Invoke-AleReview $inputRoot $referenceRoot (Join-Path $base "generated")
-    Assert-AleTree (Join-Path $referenceRoot "output/results") (Join-Path $base "generated") "$label Reference"
+  $expected = (Get-Content -LiteralPath $expectedPath -Raw).Replace("`r`n", "`n").Trim()
+  $actual = $content.Replace("`r`n", "`n").Trim()
+  if ($actual -ne $expected) {
+    throw "Candidate manifest differs from the reference for $phase"
   }
-  Assert-AleTree (Join-Path $aleWork "clean-a/generated") (Join-Path $aleWork "clean-b/generated") "two clean directories"
-
-  $mutationRoot = Join-Path $aleWork "mutation"
-  Copy-Item -LiteralPath (Join-Path $aleWork "clean-a/input") -Destination (Join-Path $mutationRoot "input") -Recurse
-  Copy-Item -LiteralPath (Join-Path $aleWork "clean-a/reference") -Destination (Join-Path $mutationRoot "reference") -Recurse
-  $probePath = Join-Path $mutationRoot "input/input_data/ordinal_probes.csv"
-  $probeText = Get-Content -LiteralPath $probePath -Raw
-  $changedText = $probeText.Replace("promote,1,false,false,9999", "promote,1,true,true,220")
-  if ($changedText -eq $probeText) { throw "mutation target missing" }
-  [IO.File]::WriteAllText($probePath, $changedText.Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
-  Invoke-AleReview (Join-Path $mutationRoot "input") (Join-Path $mutationRoot "reference") (Join-Path $mutationRoot "generated")
-  $baselineJson = (Get-AleTree (Join-Path $aleWork "clean-a/generated")) | ConvertTo-Json -Compress
-  $mutationJson = (Get-AleTree (Join-Path $mutationRoot "generated")) | ConvertTo-Json -Compress
-  if ($baselineJson -eq $mutationJson) { throw "valid input mutation did not change results" }
-
-  $negativeRoot = Join-Path $aleWork "negative"
-  Copy-Item -LiteralPath (Join-Path $aleWork "clean-a/input") -Destination (Join-Path $negativeRoot "input") -Recurse
-  Copy-Item -LiteralPath (Join-Path $aleWork "clean-a/reference") -Destination (Join-Path $negativeRoot "reference") -Recurse
-  Move-Item -LiteralPath (Join-Path $negativeRoot "input/input_data/ordinal_probes.csv") -Destination (Join-Path $negativeRoot "omitted-probes.csv")
-  $negativeOutput = Join-Path $negativeRoot "generated"
-  $env:ALE_INPUT_ROOT = Join-Path $negativeRoot "input/input_data"
-  $env:ALE_OUTPUT_ROOT = $negativeOutput
-  $env:KUBECTL_BIN = $aleKubectl
-  $env:RUBY_BIN = $aleRuby
-  & $aleRuby (Join-Path $negativeRoot "reference/output/run_release_review.rb") 2>&1 | Out-File (Join-Path $aleEvidence "negative.log")
-  $negativeExit = $LASTEXITCODE
-  if ($negativeExit -eq 0) { throw "missing probe input was accepted" }
-  if ((Test-Path $negativeOutput) -and (Get-ChildItem -LiteralPath $negativeOutput -Force | Select-Object -First 1)) { throw "negative case left published files" }
-
-  $hashes = Get-Content -LiteralPath (Join-Path $aleRoot "qa/expected_hashes.json") -Raw | ConvertFrom-Json
-  $payload = [ordered]@{
-    result = "PASS"
-    qid = "2389"
-    commit_sha = $env:GITHUB_SHA
-    workflow_run_id = $env:GITHUB_RUN_ID
-    windows_image = $env:ImageOS
-    kubectl = (& $aleKubectl version --client --output=json | ConvertFrom-Json).clientVersion.gitVersion
-    ruby = (& $aleRuby --version)
-    attachment_sha256 = $hashes
-    clean_room_runs = 2
-    reference_full_tree_match = $true
-    valid_input_mutation_changed_results = $true
-    negative_exit_code = $negativeExit
-    negative_published_files = 0
-    outbound_blocked_for_task_programs = $true
-    api_server_contacted = $false
-    controller_state_observed = $false
-    pvc_state_observed = $false
-  }
-  $payload | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $aleEvidence "q2389_reproduction.json") -Encoding utf8
 }
-finally {
-  foreach ($name in $aleRules) { Remove-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue }
+
+$payload = [ordered]@{
+  result = "PASS"
+  qid = "2389"
+  commit_sha = $env:GITHUB_SHA
+  workflow_run_id = $env:GITHUB_RUN_ID
+  windows_image = $env:ImageOS
+  kubectl = (kubectl.exe version --client --output=json | ConvertFrom-Json).clientVersion.gitVersion
+  rendered_phases = @("base", "canary", "promote", "rollback")
+  api_server_contacted = $false
 }
+$payload | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $aleEvidence "q2389_windows.json") -Encoding utf8

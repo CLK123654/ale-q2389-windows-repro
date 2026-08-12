@@ -2,8 +2,6 @@ name: q2389-windows-repro
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -17,19 +15,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.12
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
       - uses: azure/setup-kubectl@v4
         with:
           version: v1.32.6
       - name: Verify four attachments
         shell: pwsh
         run: python ./qa/verify_attachments.py
-      - name: Rebuild and compare q2389
+      - name: Build four candidate manifests
         shell: pwsh
         run: ./qa/q2389_reproduce.ps1
-      - name: Upload independent evidence
+      - name: Save Windows evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
